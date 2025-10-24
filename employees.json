@@ -1,0 +1,14 @@
+[
+  {
+    "name": "Caroline",
+    "age": 28,
+    "position": "Développeur",
+    "is_full_time": true
+  },
+  {
+    "name": "Dupony",
+    "age": 38,
+    "position": "Développeur",
+    "is_full_time": true
+  }
+]

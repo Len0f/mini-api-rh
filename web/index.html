@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <title>Mini-API RH – Demo</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        margin: 2rem;
+        max-width: 800px;
+      }
+      form,
+      .card {
+        border: 1px solid #444;
+        padding: 1rem;
+        border-radius: 12px;
+        margin-bottom: 1rem;
+      }
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.75rem;
+      }
+      button {
+        cursor: pointer;
+      }
+      code {
+        background: #111;
+        padding: 0.15rem 0.35rem;
+        border-radius: 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Mini-API RH</h1>
+
+    <section class="card">
+      <h2>Ajouter un collaborateur</h2>
+      <form id="addForm">
+        <div class="row">
+          <input name="name" placeholder="Nom" required />
+          <input
+            name="age"
+            type="number"
+            placeholder="Âge"
+            min="0"
+            max="120"
+            required
+          />
+          <input name="position" placeholder="Poste" required />
+          <label
+            ><input name="is_full_time" type="checkbox" checked /> Temps
+            plein</label
+          >
+        </div>
+        <button type="submit">Ajouter</button>
+      </form>
+      <p id="msg"></p>
+    </section>
+
+    <section class="card">
+      <h2>Collaborateurs <small>(filtre par poste)</small></h2>
+      <input id="filter" placeholder="Ex: Développeur" />
+      <button id="btnFilter">Filtrer</button>
+      <button id="btnAll">Tous</button>
+      <ul id="list"></ul>
+    </section>
+
+    <section class="card">
+      <h2>Stats</h2>
+      <pre id="stats"></pre>
+    </section>
+
+    <script>
+      const API = "http://127.0.0.1:8000";
+
+      const $list = document.getElementById("list");
+      const $msg = document.getElementById("msg");
+      const $stats = document.getElementById("stats");
+
+      async function fetchEmployees(position) {
+        const url = position
+          ? `${API}/employees?position=${encodeURIComponent(position)}`
+          : `${API}/employees`;
+        const res = await fetch(url);
+        return res.json();
+      }
+
+      async function render(position) {
+        const items = await fetchEmployees(position);
+        $list.innerHTML = "";
+        items.forEach((e) => {
+          const li = document.createElement("li");
+          li.innerHTML = `<strong>${e.name}</strong> — ${e.age} ans — ${
+            e.position
+          } — ${e.is_full_time ? "Temps plein" : "Temps partiel"}
+          <button data-del="${e.name}">Supprimer</button>`;
+          $list.appendChild(li);
+        });
+        bindDelete();
+        const s = await (await fetch(`${API}/stats`)).json();
+        $stats.textContent = JSON.stringify(s, null, 2);
+      }
+
+      function bindDelete() {
+        [...document.querySelectorAll("[data-del]")].forEach((btn) => {
+          btn.onclick = async () => {
+            const name = btn.getAttribute("data-del");
+            const res = await fetch(
+              `${API}/employees/${encodeURIComponent(name)}`,
+              { method: "DELETE" }
+            );
+            if (res.ok) render();
+            else alert("Suppression impossible");
+          };
+        });
+      }
+
+      document.getElementById("addForm").onsubmit = async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const payload = {
+          name: fd.get("name"),
+          age: Number(fd.get("age")),
+          position: fd.get("position"),
+          is_full_time: fd.get("is_full_time") === "on",
+        };
+        const res = await fetch(`${API}/employees`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (res.ok) {
+          $msg.textContent = "Ajout ok ✅";
+          e.target.reset();
+          render();
+        } else {
+          const err = await res.json();
+          $msg.textContent = "Erreur: " + (err.detail || "inconnue");
+        }
+      };
+
+      document.getElementById("btnFilter").onclick = () => {
+        render(document.getElementById("filter").value.trim());
+      };
+      document.getElementById("btnAll").onclick = () => {
+        document.getElementById("filter").value = "";
+        render();
+      };
+
+      render();
+    </script>
+  </body>
+</html>
